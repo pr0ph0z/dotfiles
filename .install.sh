@@ -12,6 +12,8 @@ brew install orbstack
 brew install oven-sh/bun/bun
 brew install go
 
+sh <(curl -L https://nixos.org/nix/install)
+
 brew services start sketchybar
 
 defaults write com.apple.dock workspaces-edge-delay -float 0.1

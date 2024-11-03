@@ -9,6 +9,8 @@ brew tap FelixKratz/formulae
 brew install sketchybar
 
 brew install orbstack
+brew install oven-sh/bun/bun
+brew install go
 
 brew services start sketchybar
 

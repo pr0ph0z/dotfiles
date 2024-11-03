@@ -8,6 +8,8 @@ brew tap FelixKratz/formulae
 
 brew install sketchybar
 
+brew install orbstack
+
 brew services start sketchybar
 
 defaults write com.apple.dock workspaces-edge-delay -float 0.1

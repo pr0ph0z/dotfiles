@@ -15,7 +15,8 @@ brew install orbstack
 brew install oven-sh/bun/bun
 brew install go
 
-sh <(curl -L https://nixos.org/nix/install)
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+nix registry pin nixpkgs
 
 brew services start sketchybar
 

@@ -14,6 +14,7 @@ brew install zsh-autosuggestions
 brew install orbstack
 brew install oven-sh/bun/bun
 brew install go
+brew install --cask dbeaver-community
 
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 nix registry pin nixpkgs

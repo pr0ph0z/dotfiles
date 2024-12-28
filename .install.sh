@@ -9,6 +9,7 @@ brew tap FelixKratz/formulae
 brew install tmux
 brew install sketchybar
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+brew install --cask ghostty
 
 brew install zsh
 brew install zsh-autosuggestions

@@ -29,5 +29,8 @@ defaults write com.apple.dock workspaces-edge-delay -float 0.1
 defaults write com.apple.dock autohide -bool true
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
 defaults write com.apple.finder DisableAllAnimations -bool true
+# disable elastic scrolling
 defaults write -g NSScrollViewRubberbanding -int 0
+# disable window animations, including emoji window
+defaults write -g NSAutomaticWindowAnimationsEnabled -bool false
 sudo defaults write /Library/Preferences/FeatureFlags/Domain/UIKit.plist emoji_enhancements -dict-add Enabled -bool NO

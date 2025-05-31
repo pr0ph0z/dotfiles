@@ -19,6 +19,7 @@ brew install oven-sh/bun/bun
 brew install go
 curl https://get.volta.sh | bash
 brew install --cask dbeaver-community
+brew install ack
 
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 nix registry pin nixpkgs

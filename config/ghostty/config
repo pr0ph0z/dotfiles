@@ -1,0 +1,12 @@
+# Ghostty config
+
+# Option+Delete (backward word delete) -> send ESC DEL so Neovim reads <M-BS>
+keybind = option+backspace=text:\x1b\x7f
+
+# Option+Fn+Delete (forward word delete) -> send ESC d so Neovim reads <M-d>
+keybind = option+delete=esc:d
+
+# Cmd+Left/Right -> send CSI sequences with super modifier (9 = 1+8)
+# so Neovim reads <D-Left> / <D-Right> (start/end of line)
+keybind = command+left=csi:1;9D
+keybind = command+right=csi:1;9C

@@ -27,6 +27,13 @@ nix registry pin nixpkgs
 
 brew services start sketchybar
 
+# Symlink config directories from this repo into ~/.config
+DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p "$HOME/.config"
+ln -sfn "$DOTFILES_DIR/config/nvim"       "$HOME/.config/nvim"
+ln -sfn "$DOTFILES_DIR/config/ghostty"    "$HOME/.config/ghostty"
+ln -sfn "$DOTFILES_DIR/config/sketchybar" "$HOME/.config/sketchybar"
+
 defaults write com.apple.dock workspaces-edge-delay -float 0.1
 defaults write com.apple.dock autohide -bool true
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false

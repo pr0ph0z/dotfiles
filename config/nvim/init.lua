@@ -35,6 +35,9 @@ vim.keymap.set({'n', 'v'}, '<D-Down>', 'G',  { noremap = true })
 vim.keymap.set('i', '<D-Up>',   '<C-o>gg', { noremap = true })
 vim.keymap.set('i', '<D-Down>', '<C-o>G',  { noremap = true })
 
+-- Command+C -> copy visual selection to system clipboard
+vim.keymap.set('v', '<D-c>', '"+y', { noremap = true })
+
 
 -- Diagnostic: run `:Keycodes` in Neovim, then press the problematic key
 -- to see what Neovim actually receives.

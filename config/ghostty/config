@@ -15,3 +15,8 @@ keybind = command+right=text:\x1bOF
 # Neovim reads them as <D-Up> / <D-Down>
 keybind = command+up=text:\x1b[1;9A
 keybind = command+down=text:\x1b[1;9B
+
+# Cmd+C -> copy terminal selection if there is one,
+# otherwise fall through to the running program (Neovim picks it up
+# via the kitty keyboard protocol as <D-c>).
+keybind = performable:command+c=copy_to_clipboard

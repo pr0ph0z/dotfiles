@@ -29,8 +29,20 @@ vim.keymap.set('n', '<A-BS>', 'db', { noremap = true })
 vim.keymap.set('i', '<M-d>', '<C-o>de', { noremap = true })
 vim.keymap.set('n', '<M-d>', 'de', { noremap = true })
 
--- Command+Left/Right for start/end of line (requires terminal to pass Cmd key)
-vim.keymap.set({'n', 'v'}, '<D-Left>', '^', { noremap = true })
-vim.keymap.set({'n', 'v'}, '<D-Right>', '$', { noremap = true })
-vim.keymap.set('i', '<D-Left>', '<C-o>^', { noremap = true })
-vim.keymap.set('i', '<D-Right>', '<C-o>$', { noremap = true })
+-- Command+Up/Down -> start/end of document
+vim.keymap.set({'n', 'v'}, '<D-Up>',   'gg', { noremap = true })
+vim.keymap.set({'n', 'v'}, '<D-Down>', 'G',  { noremap = true })
+vim.keymap.set('i', '<D-Up>',   '<C-o>gg', { noremap = true })
+vim.keymap.set('i', '<D-Down>', '<C-o>G',  { noremap = true })
+
+
+-- Diagnostic: run `:Keycodes` in Neovim, then press the problematic key
+-- to see what Neovim actually receives.
+vim.api.nvim_create_user_command('Keycodes', function()
+  print('Press any key (Ctrl-C to stop)...')
+  while true do
+    local c = vim.fn.getchar()
+    if c == 3 then break end -- Ctrl-C
+    print('Keycode: ' .. c .. '  |  String: ' .. vim.fn.nr2char(c))
+  end
+end, {})

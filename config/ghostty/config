@@ -6,7 +6,12 @@ keybind = option+backspace=text:\x1b\x7f
 # Option+Fn+Delete (forward word delete) -> send ESC d so Neovim reads <M-d>
 keybind = option+delete=esc:d
 
-# Cmd+Left/Right -> send CSI sequences with super modifier (9 = 1+8)
-# so Neovim reads <D-Left> / <D-Right> (start/end of line)
-keybind = command+left=csi:1;9D
-keybind = command+right=csi:1;9C
+# Cmd+Left/Right -> send xterm-style Home/End sequences
+# (recognised natively by Neovim's terminfo)
+keybind = command+left=text:\x1bOH
+keybind = command+right=text:\x1bOF
+
+# Cmd+Up/Down -> arrow keys with super modifier (mod 9 = 1+8)
+# Neovim reads them as <D-Up> / <D-Down>
+keybind = command+up=text:\x1b[1;9A
+keybind = command+down=text:\x1b[1;9B

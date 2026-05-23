@@ -1,5 +1,7 @@
 # Ghostty config
 
+macos-option-as-alt = true
+
 # Option+Delete (backward word delete) -> send ESC DEL so Neovim reads <M-BS>
 keybind = option+backspace=text:\x1b\x7f
 
@@ -20,3 +22,5 @@ keybind = command+down=text:\x1b[1;9B
 # otherwise fall through to the running program (Neovim picks it up
 # via the kitty keyboard protocol as <D-c>).
 keybind = performable:command+c=copy_to_clipboard
+keybind = performable:ctrl+tab=next_tab
+keybind = shift+enter=text:\n

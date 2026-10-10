@@ -1,0 +1,30 @@
+config/sketchybar/plugins/clock_id.sh
+  s_c117ae1cf62491::t_1c772733f8a2df 3
+config/sketchybar/plugins/media.sh
+  s_c117ae1cf62491::t_c766ccd271c018 1-17
+config/sketchybar/plugins/space.sh
+  s_c117ae1cf62491::t_2c3da702ce01de 3
+config/sketchybar/sketchybarrc
+  s_c117ae1cf62491::t_2fad32ba06f6e8 1,5-9,11-18,20-23,25-33,36-37,39-45,47-65,67-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "20705a8e602a2cc6038b10a0aacc293c787ba3e1",
+  "prompts": {},
+  "humans": {
+    "h_49c05d64b79ad7": {
+      "author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_c117ae1cf62491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1258a-2d47-7520-9b4d-32f8e12e3305",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

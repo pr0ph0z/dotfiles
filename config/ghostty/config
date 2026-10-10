@@ -1,5 +1,7 @@
 # Ghostty config
 
+window-decoration = false
+
 macos-option-as-alt = true
 
 # Option+Delete (backward word delete) -> send ESC DEL so Neovim reads <M-BS>

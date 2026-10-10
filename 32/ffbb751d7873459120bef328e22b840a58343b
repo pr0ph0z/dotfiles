@@ -1,0 +1,24 @@
+config/ghostty/config
+  s_c117ae1cf62491::t_1ffbea9ad8acec 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32ffbb751d7873459120bef328e22b840a58343b",
+  "prompts": {},
+  "humans": {
+    "h_49c05d64b79ad7": {
+      "author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_c117ae1cf62491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1258a-2d47-7520-9b4d-32f8e12e3305",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

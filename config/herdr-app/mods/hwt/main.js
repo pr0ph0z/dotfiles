@@ -74,7 +74,7 @@ export default class Hwt extends View {
       .child(label("Branch"))
       .child(Input.new(this.input).h(36).px(10).rounded(9).border_1().border_color(t.accent).bg(t.background).text_size(12.8).text_color(t.foreground))
       .child(div().pt(6).text_size(11.5).text_color(t.dim).child(this.cwd ? `Runs hwt in ${this.cwd}` : "No focused terminal folder"))
-      .when(Boolean(this.error), (el) => el.child(div().pt(8).text_size(11.5).text_color(t.danger ?? "#e5484d").child(this.error)))
+      .when(Boolean(this.error), (el) => el.child(div().pt(8).text_size(11.5).text_color(t.ansi1).child(this.error)))
       .child(h_flex().pt(20).gap(8).justify_end()
         .child(button("hwt-cancel", "Cancel", false, () => { if (!this.busy) this.close(); }))
         .child(button("hwt-create", this.busy ? "Creating…" : "Create", true, (_e, cx) => this.submit(cx))));

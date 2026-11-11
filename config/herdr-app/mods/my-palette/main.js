@@ -4,7 +4,7 @@
 // group. Choices are entries of their own ("Layout: Zen"); commands that need
 // a name ask for it. Enter runs, ↑/↓ move, Esc closes.
 // Personal copy of frame/palette (Herdr rewrites frame/ on every start).
-// Added: the "New worktree (hwt)" entry. Compare with frame/palette/main.js after Herdr updates.
+// Added: the "New worktree (hwt)" and "Delete worktree (hwt -d)" entries. Compare with frame/palette/main.js after Herdr updates.
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
@@ -26,6 +26,7 @@ const NAMED = [
   ["mod.open", { name: "picker" }, "Tab", "Go to space or tab…", "switch jump find"],
   ["tab.rename", {}, "Tab", "Rename tab", "tab"],
   ["mod.open", { name: "hwt" }, "Tab", "New worktree (hwt)", "hwt git branch worktree create"],
+  ["mod.open", { name: "hwt-delete" }, "Tab", "Delete worktree (hwt -d)", "hwt git branch worktree remove destroy"],
   ["tab.close", {}, "Tab", "Close tab", "tab kill"],
   ["tab.next", {}, "Tab", "Next tab", "tab"],
   ["tab.prev", {}, "Tab", "Previous tab", "tab"],

@@ -1,0 +1,23 @@
+script/hwt
+  s_64221db553c484::t_f654e9caf8e115 40,42
+  s_64221db553c484::t_a4157eca77e468 62-72
+  s_64221db553c484::t_2fde9a39fdf481 11-15
+  s_64221db553c484::t_515b317f45406c 2-10,17,19,21-39,41,43-61,79,83-90
+  s_64221db553c484::t_a009791b5f2523 73-78,80-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa355462da606cfb323a0b0e9babc7b13307489c",
+  "prompts": {},
+  "sessions": {
+    "s_64221db553c484": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "717bb2dd-901b-4944-88b2-9b2c37ec9b95",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

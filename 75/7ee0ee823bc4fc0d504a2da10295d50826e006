@@ -1,0 +1,25 @@
+config/herdr-app/mods/hwt-delete/main.js
+  s_86a4f2cca6d845::t_e54fa203c3eb2b 1-110
+config/herdr-app/mods/my-palette/main.js
+  s_86a4f2cca6d845::t_300f4536107c73 29
+config/herdr-app/mods/hwt-delete/mod.json
+  s_86a4f2cca6d845::t_7b1ab683918d4e 1
+config/herdr-app/mods/hwt/main.js
+  s_86a4f2cca6d845::t_2daad4fc264af0 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "757ee0ee823bc4fc0d504a2da10295d50826e006",
+  "prompts": {},
+  "sessions": {
+    "s_86a4f2cca6d845": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc84971a-fb6f-4d8e-bbab-1b0449f55bd5",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

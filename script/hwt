@@ -3,7 +3,9 @@
 #
 #   hwt <branch> [--no-desktop] [herdr worktree create options...]
 #       Create a worktree for <branch>. Extra arguments go to
-#       `herdr worktree create` (e.g. --base master).
+#       `herdr worktree create` (e.g. --base master). From a linked
+#       worktree, create from the main checkout, because herdr refuses
+#       to create from a linked worktree.
 #       If the Herdr desktop runs, add a sidebar space for the worktree with
 #       a shell pane in it. When the window is open, also show (focus) the
 #       new space. --no-desktop skips this.
@@ -320,7 +322,26 @@ for arg in "$@"; do
   esac
 done
 
-out=$(herdr worktree create --cwd "$PWD" --branch "$branch" --label "$branch" "${create_args[@]}") || {
+# herdr creates worktrees only from the main checkout ("new and open worktree
+# actions start from the repo parent workspace"). When this runs in a linked
+# worktree, create from the main checkout. The first entry of
+# `git worktree list` is the main checkout; skip it for a bare repository.
+main_checkout() {
+  git worktree list --porcelain 2>/dev/null | awk '
+    NR == 1 && /^worktree / { path = substr($0, 10); next }
+    NR == 2 && $0 == "bare" { path = "" }
+    NR >= 2 { exit }
+    END { if (path != "") print path }'
+}
+
+create_cwd=$(main_checkout)
+[[ -n "$create_cwd" && -d "$create_cwd" ]] || create_cwd=$PWD
+top=$(git rev-parse --show-toplevel 2>/dev/null)
+if [[ -n "$top" && "$create_cwd" != "$top" ]]; then
+  echo "hwt: in a linked worktree; creating from the main checkout $create_cwd" >&2
+fi
+
+out=$(herdr worktree create --cwd "$create_cwd" --branch "$branch" --label "$branch" "${create_args[@]}") || {
   echo "$out" >&2
   exit 1
 }

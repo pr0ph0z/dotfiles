@@ -34,6 +34,12 @@ ln -sfn "$DOTFILES_DIR/config/nvim"       "$HOME/.config/nvim"
 ln -sfn "$DOTFILES_DIR/config/ghostty"    "$HOME/.config/ghostty"
 ln -sfn "$DOTFILES_DIR/config/sketchybar" "$HOME/.config/sketchybar"
 
+# Agent instructions: ~/.agents holds other files (skills/), so link each file.
+mkdir -p "$HOME/.agents" "$HOME/.claude"
+ln -sfn "$DOTFILES_DIR/config/agents/AGENTS.md" "$HOME/.agents/AGENTS.md"
+ln -sfn "$DOTFILES_DIR/config/agents/RTK.md"    "$HOME/.agents/RTK.md"
+ln -sfn "$HOME/.agents/AGENTS.md"               "$HOME/.claude/CLAUDE.md"
+
 defaults write com.apple.dock workspaces-edge-delay -float 0.1
 defaults write com.apple.dock autohide -bool true
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false

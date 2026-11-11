@@ -34,6 +34,13 @@ ln -sfn "$DOTFILES_DIR/config/nvim"       "$HOME/.config/nvim"
 ln -sfn "$DOTFILES_DIR/config/ghostty"    "$HOME/.config/ghostty"
 ln -sfn "$DOTFILES_DIR/config/sketchybar" "$HOME/.config/sketchybar"
 
+# Herdr desktop writes its own files in ~/.config/herdr-app: link only our items.
+mkdir -p "$HOME/.config/herdr-app/mods"
+ln -sfn "$DOTFILES_DIR/config/herdr-app/keys.json" "$HOME/.config/herdr-app/keys.json"
+for m in "$DOTFILES_DIR"/config/herdr-app/mods/*/; do
+  ln -sfn "${m%/}" "$HOME/.config/herdr-app/mods/$(basename "$m")"
+done
+
 # Agent instructions: ~/.agents holds other files (skills/), so link each file.
 mkdir -p "$HOME/.agents" "$HOME/.claude"
 ln -sfn "$DOTFILES_DIR/config/agents/AGENTS.md" "$HOME/.agents/AGENTS.md"

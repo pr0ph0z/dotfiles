@@ -4,8 +4,9 @@
 #   hwt <branch> [--no-desktop] [herdr worktree create options...]
 #       Create a worktree for <branch>. Extra arguments go to
 #       `herdr worktree create` (e.g. --base master).
-#       If the Herdr desktop core (herdr-core) runs, add a sidebar space for
-#       the worktree with a shell pane in it. --no-desktop skips this.
+#       If the Herdr desktop runs, add a sidebar space for the worktree with
+#       a shell pane in it. When the window is open, also show (focus) the
+#       new space. --no-desktop skips this.
 #       Without a desktop space, start a new shell in the worktree, because a
 #       script cannot change the caller's directory. Type `exit` to go back.
 #
@@ -17,8 +18,10 @@
 #       worktree and end its terminals. Then start a new shell in the main
 #       project directory.
 #
-# The desktop space uses the private `herdr-app` document of herdr-core
-# (format seen in herdr-core 0.1.20). A desktop update can change it.
+# With the window open, hwt uses the `herdr-app do` commands (space.new,
+# space.close). With the window closed, it falls back to herdr-core: a
+# labeled terminal and the private `herdr-app` document (format seen in
+# herdr-core 0.1.20). A desktop update can change that format.
 
 usage() {
   echo "usage: hwt <branch> [--no-desktop] [herdr worktree create options...]" >&2
@@ -26,14 +29,79 @@ usage() {
   exit 1
 }
 
-# ---------- Herdr desktop (herdr-core) ----------
+# ---------- Herdr desktop ----------
 
 HC_BIN=${HWT_HC:-$(command -v herdr-core 2>/dev/null || echo "$HOME/.local/bin/herdr-core")}
+APP_BIN=${HWT_APP:-$(command -v herdr-app 2>/dev/null || echo "$HOME/.local/bin/herdr-app")}
 DESKTOP_DOC=herdr-app
 
-desktop_available() {
+core_available() {
   [[ -x "$HC_BIN" ]] && "$HC_BIN" server status >/dev/null 2>&1
 }
+
+# The window is open when `herdr-app status` answers with the shown space.
+app_available() {
+  [[ -x "$APP_BIN" ]] && "$APP_BIN" status 2>/dev/null | jq -e '.space' >/dev/null 2>&1
+}
+
+desktop_available() {
+  app_available || core_available
+}
+
+# desktop_add <path>: add a sidebar space for <path>, shown if possible.
+desktop_add() {
+  if app_available; then
+    app_add "$1" && return 0
+    echo "hwt: herdr-app could not add the space; trying herdr-core" >&2
+  fi
+  core_available && core_add "$1"
+}
+
+# desktop_remove <path>: remove the sidebar spaces of <path>. Print the
+# space or terminal that holds this shell, for the caller to close last.
+desktop_remove() {
+  if app_available; then
+    app_remove "$1"
+  else
+    core_remove "$1"
+  fi
+}
+
+# ---------- Herdr desktop window (herdr-app) ----------
+
+# app_add <path>: space.new makes the space and shows it.
+app_add() {
+  local out
+  out=$("$APP_BIN" do space.new --folder "$1" 2>&1) || { echo "$out" >&2; return 1; }
+  if ! jq -e '.space' <<<"$out" >/dev/null 2>&1; then
+    echo "$out" >&2
+    return 1
+  fi
+  echo "Added and showed desktop space for $1 (terminal $(jq -r '.terminal // "?"' <<<"$out"))"
+}
+
+# app_remove <path>: close the spaces of <path>. Skip the space that holds
+# this shell and print its id, because closing it ends this script.
+app_remove() {
+  local wt_path="$1" spaces sp own="" closed=0
+  spaces=(${(f)"$("$APP_BIN" ls 2>/dev/null | jq -r --arg f "$wt_path" --arg t "$HC_TERMINAL_ID" \
+      '.spaces[]? | select(.folder == $f)
+       | "\(.id) \(if any(.tabs[]?.terminals[]?; .terminal == $t) then 1 else 0 end)"')"})
+  for sp in $spaces; do
+    if [[ "${sp#* }" == 1 ]]; then
+      own="space:${sp%% *}"
+      continue
+    fi
+    "$APP_BIN" do space.close "{\"id\":\"${sp%% *}\",\"confirmed\":true}" >/dev/null || return 1
+    closed=1
+  done
+  (( closed )) || [[ -n "$own" ]] || return 0
+  echo "Removed desktop space for $wt_path" >&2
+  [[ -n "$own" ]] && print -r -- "$own"
+  return 0
+}
+
+# ---------- Herdr desktop core (herdr-core), window closed ----------
 
 # rpc <method> <params-json>: one JSON-RPC call through `herdr-core connect`.
 # Print the result object. Print the error object to stderr and fail on error.
@@ -87,8 +155,8 @@ new_id() {
   print -r -- "$1$(openssl rand -hex 16)"
 }
 
-# desktop_add <path>: add a sidebar space for <path> with one shell pane.
-desktop_add() {
+# core_add <path>: add a sidebar space for <path> with one shell pane.
+core_add() {
   local wt_path="$1" sp tb pn run term
   sp=$(new_id sp); tb=$(new_id tb); pn=$(new_id p)
 
@@ -131,9 +199,9 @@ desktop_add() {
   echo "Added desktop space for $wt_path (terminal $term)"
 }
 
-# desktop_remove <path>: remove the sidebar spaces of <path> and end their
+# core_remove <path>: remove the sidebar spaces of <path> and end their
 # terminals. End the current terminal last, because hwt may run in it.
-desktop_remove() {
+core_remove() {
   local wt_path="$1" cur terms t own=""
   cur=$(rpc doc.get "{\"name\":\"$DESKTOP_DOC\"}") || return 1
   terms=(${(f)"$(jq -r --arg f "$wt_path" \
@@ -211,8 +279,12 @@ destroy() {
     own_term=$(desktop_remove "$wt_path") || echo "hwt: could not remove the desktop space" >&2
   fi
 
-  # hwt runs in a terminal of the removed space: end it, and stop here.
-  if [[ -n "$own_term" ]]; then
+  # hwt runs in the removed space: close it last, and stop here.
+  # herdr-app gives "space:<id>"; herdr-core gives a terminal address.
+  if [[ "$own_term" == space:* ]]; then
+    "$APP_BIN" do space.close "{\"id\":\"${own_term#space:}\",\"confirmed\":true}" >/dev/null 2>&1
+    exit 0
+  elif [[ -n "$own_term" ]]; then
     "$HC_BIN" kill "$own_term" >/dev/null 2>&1
     exit 0
   fi

@@ -1,0 +1,27 @@
+#!/usr/bin/env zsh
+# hwt: create a herdr worktree for branch $1, then open a shell in it.
+# Extra arguments go to `herdr worktree create` (e.g. --base master).
+# A script cannot change the caller's directory, so it starts a new shell
+# in the worktree. Type `exit` to go back to the original directory.
+
+if [[ -z "$1" ]]; then
+  echo "usage: hwt <branch> [herdr worktree create options...]" >&2
+  exit 1
+fi
+
+branch="$1"; shift
+
+out=$(herdr worktree create --cwd "$PWD" --branch "$branch" --label "$branch" "$@") || {
+  echo "$out" >&2
+  exit 1
+}
+
+wt_path=$(jq -r '.result.worktree.path // empty' <<<"$out")
+if [[ -z "$wt_path" ]]; then
+  echo "hwt: no worktree path in herdr output:" >&2
+  echo "$out" >&2
+  exit 1
+fi
+
+cd "$wt_path" || exit 1
+exec "${SHELL:-zsh}"

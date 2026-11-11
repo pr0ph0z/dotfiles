@@ -40,6 +40,9 @@ ln -sfn "$DOTFILES_DIR/config/agents/AGENTS.md" "$HOME/.agents/AGENTS.md"
 ln -sfn "$DOTFILES_DIR/config/agents/RTK.md"    "$HOME/.agents/RTK.md"
 ln -sfn "$HOME/.agents/AGENTS.md"               "$HOME/.claude/CLAUDE.md"
 
+sudo mkdir -p /usr/local/bin
+for f in "$DOTFILES_DIR"/script/*; do sudo ln -sfn "$f" "/usr/local/bin/$(basename "$f")"; done
+
 defaults write com.apple.dock workspaces-edge-delay -float 0.1
 defaults write com.apple.dock autohide -bool true
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false

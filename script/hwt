@@ -1,24 +1,160 @@
 #!/usr/bin/env zsh
 # hwt: create a herdr worktree for a branch, then open a shell in it.
 #
-#   hwt <branch> [herdr worktree create options...]
-#       Create a worktree for <branch> and start a new shell in it.
-#       Extra arguments go to `herdr worktree create` (e.g. --base master).
-#       A script cannot change the caller's directory, so it starts a new
-#       shell in the worktree. Type `exit` to go back.
+#   hwt <branch> [--no-desktop] [herdr worktree create options...]
+#       Create a worktree for <branch>. Extra arguments go to
+#       `herdr worktree create` (e.g. --base master).
+#       If the Herdr desktop core (herdr-core) runs, add a sidebar space for
+#       the worktree with a shell pane in it. --no-desktop skips this.
+#       Without a desktop space, start a new shell in the worktree, because a
+#       script cannot change the caller's directory. Type `exit` to go back.
 #
 #   hwt -d|--destroy [branch] [--force]
 #       Remove the linked worktree of <branch> and force-delete the branch
 #       (`git branch -D`, so unmerged commits are dropped too). Without
 #       <branch>, use the branch of the current directory. --force removes a
-#       worktree that has uncommitted changes. Then start a new shell in the
-#       main project directory.
+#       worktree that has uncommitted changes. Remove the desktop space of the
+#       worktree and end its terminals. Then start a new shell in the main
+#       project directory.
+#
+# The desktop space uses the private `herdr-app` document of herdr-core
+# (format seen in herdr-core 0.1.20). A desktop update can change it.
 
 usage() {
-  echo "usage: hwt <branch> [herdr worktree create options...]" >&2
+  echo "usage: hwt <branch> [--no-desktop] [herdr worktree create options...]" >&2
   echo "       hwt -d|--destroy [branch] [--force]" >&2
   exit 1
 }
+
+# ---------- Herdr desktop (herdr-core) ----------
+
+HC_BIN=${HWT_HC:-$(command -v herdr-core 2>/dev/null || echo "$HOME/.local/bin/herdr-core")}
+DESKTOP_DOC=herdr-app
+
+desktop_available() {
+  [[ -x "$HC_BIN" ]] && "$HC_BIN" server status >/dev/null 2>&1
+}
+
+# rpc <method> <params-json>: one JSON-RPC call through `herdr-core connect`.
+# Print the result object. Print the error object to stderr and fail on error.
+rpc() {
+  local req resp
+  req=$(jq -cn --arg m "$1" --argjson p "$2" '{jsonrpc:"2.0",id:1,method:$m,params:$p}')
+  resp=$(print -r -- "$req" | "$HC_BIN" connect 2>/dev/null | jq -c 'select(.id == 1)' | head -n 1)
+  if [[ -z "$resp" ]]; then
+    echo "hwt: no answer from herdr-core for $1" >&2
+    return 1
+  fi
+  if jq -e '.error' <<<"$resp" >/dev/null; then
+    jq -c '.error' <<<"$resp" >&2
+    return 1
+  fi
+  jq -c '.result' <<<"$resp"
+}
+
+# doc_update <jq-filter> [jq args...]: read the desktop document, apply the
+# filter to its value, and write it back. Retry when the version changed.
+doc_update() {
+  local filter="$1"; shift
+  local cur version value newval attempt
+  for attempt in 1 2 3 4 5; do
+    cur=$(rpc doc.get "{\"name\":\"$DESKTOP_DOC\"}") || return 1
+    version=$(jq -r '.version' <<<"$cur")
+    value=$(jq -c '.value' <<<"$cur")
+    if [[ "$value" == "null" ]]; then
+      echo "hwt: desktop document '$DESKTOP_DOC' is empty; open the Herdr app once" >&2
+      return 1
+    fi
+    newval=$(jq -c "$@" "$filter" <<<"$value") || return 1
+    [[ "$newval" == "$value" ]] && return 0
+    if rpc doc.set "$(jq -cn --arg n "$DESKTOP_DOC" --argjson v "$newval" --argjson ver "$version" \
+        '{name:$n,value:$v,version:$ver}')" >/dev/null 2>"${TMPDIR:-/tmp}/hwt.$$.err"; then
+      rm -f "${TMPDIR:-/tmp}/hwt.$$.err"
+      return 0
+    fi
+    if ! grep -q conflict "${TMPDIR:-/tmp}/hwt.$$.err"; then
+      cat "${TMPDIR:-/tmp}/hwt.$$.err" >&2
+      rm -f "${TMPDIR:-/tmp}/hwt.$$.err"
+      return 1
+    fi
+    rm -f "${TMPDIR:-/tmp}/hwt.$$.err"
+  done
+  echo "hwt: desktop document kept changing; gave up" >&2
+  return 1
+}
+
+new_id() {
+  print -r -- "$1$(openssl rand -hex 16)"
+}
+
+# desktop_add <path>: add a sidebar space for <path> with one shell pane.
+desktop_add() {
+  local wt_path="$1" sp tb pn run term
+  sp=$(new_id sp); tb=$(new_id tb); pn=$(new_id p)
+
+  run=$("$HC_BIN" run --bg --keep --no-parent --no-notify --json \
+      --cwd "$wt_path" \
+      --label "herdr.space=$sp" --label "herdr.tab=$tb" \
+      "${SHELL:-/bin/zsh}" -l) || { echo "$run" >&2; return 1; }
+  term=$(jq -r '.address // .result.address // empty' <<<"$run")
+  if [[ -z "$term" ]]; then
+    echo "hwt: no terminal address in herdr-core output:" >&2
+    echo "$run" >&2
+    return 1
+  fi
+
+  # The app adds a space by itself for a terminal with herdr.space and
+  # herdr.tab labels. Wait for that. Write the space only if it does not
+  # come, and never add a second space with the same id.
+  local i
+  for i in {1..15}; do
+    rpc doc.get "{\"name\":\"$DESKTOP_DOC\"}" \
+      | jq -e --arg sp "$sp" 'any(.value.spaces[]?; .id == $sp)' >/dev/null && {
+      echo "Added desktop space for $wt_path (terminal $term)"
+      return 0
+    }
+    sleep 0.2
+  done
+
+  if ! doc_update 'if any(.spaces[]?; .id == $sp) then . else .spaces += [{
+        folder: $folder, id: $sp, name: "",
+        tabs: [{id: $tb, name: "",
+                root: {id: $tb, type: "row",
+                       children: [{id: $pn, type: "block", content: {terminal: $term}}]}}]
+      }] end' \
+      --arg folder "$wt_path" --arg sp "$sp" --arg tb "$tb" --arg pn "$pn" --arg term "$term"; then
+    "$HC_BIN" kill "$term" >/dev/null 2>&1
+    "$HC_BIN" rm "$term" >/dev/null 2>&1
+    return 1
+  fi
+
+  echo "Added desktop space for $wt_path (terminal $term)"
+}
+
+# desktop_remove <path>: remove the sidebar spaces of <path> and end their
+# terminals. End the current terminal last, because hwt may run in it.
+desktop_remove() {
+  local wt_path="$1" cur terms t own=""
+  cur=$(rpc doc.get "{\"name\":\"$DESKTOP_DOC\"}") || return 1
+  terms=(${(f)"$(jq -r --arg f "$wt_path" \
+      '.value.spaces[]? | select(.folder == $f) | .. | objects | .terminal? // empty' <<<"$cur")"})
+  (( ${#terms} )) || [[ -n "$(jq -r --arg f "$wt_path" '.value.spaces[]? | select(.folder == $f) | .id' <<<"$cur")" ]] || return 0
+
+  doc_update '.spaces |= map(select(.folder != $folder))' --arg folder "$wt_path" || return 1
+  echo "Removed desktop space for $wt_path" >&2
+
+  for t in $terms; do
+    if [[ "$t" == "$HC_TERMINAL_ID" ]]; then
+      own=$t
+      continue
+    fi
+    "$HC_BIN" kill "$t" >/dev/null 2>&1
+  done
+  [[ -n "$own" ]] && print -r -- "$own"
+  return 0
+}
+
+# ---------- destroy ----------
 
 destroy() {
   local branch="" force=""
@@ -37,7 +173,7 @@ destroy() {
     }
   fi
 
-  local list entry wt_path ws_id repo_root
+  local list entry wt_path ws_id repo_root own_term=""
   list=$(herdr worktree list --cwd "$PWD") || { echo "$list" >&2; exit 1; }
   repo_root=$(jq -r '.result.source.source_checkout_path // empty' <<<"$list")
 
@@ -71,6 +207,16 @@ destroy() {
     echo "hwt: project directory not found; branch '$branch' not deleted" >&2
   fi
 
+  if desktop_available; then
+    own_term=$(desktop_remove "$wt_path") || echo "hwt: could not remove the desktop space" >&2
+  fi
+
+  # hwt runs in a terminal of the removed space: end it, and stop here.
+  if [[ -n "$own_term" ]]; then
+    "$HC_BIN" kill "$own_term" >/dev/null 2>&1
+    exit 0
+  fi
+
   # Go back to the main project checkout. A script cannot change the
   # caller's directory, so start a new shell there (skip if already there).
   if [[ -z "$repo_root" || ! -d "$repo_root" ]]; then
@@ -82,6 +228,8 @@ destroy() {
   exec "${SHELL:-zsh}"
 }
 
+# ---------- create ----------
+
 case "$1" in
   "") usage ;;
   -h|--help) usage ;;
@@ -91,7 +239,16 @@ esac
 
 branch="$1"; shift
 
-out=$(herdr worktree create --cwd "$PWD" --branch "$branch" --label "$branch" "$@") || {
+desktop=1
+create_args=()
+for arg in "$@"; do
+  case "$arg" in
+    --no-desktop) desktop=0 ;;
+    *) create_args+=("$arg") ;;
+  esac
+done
+
+out=$(herdr worktree create --cwd "$PWD" --branch "$branch" --label "$branch" "${create_args[@]}") || {
   echo "$out" >&2
   exit 1
 }
@@ -101,6 +258,13 @@ if [[ -z "$wt_path" ]]; then
   echo "hwt: no worktree path in herdr output:" >&2
   echo "$out" >&2
   exit 1
+fi
+
+if (( desktop )) && desktop_available; then
+  if desktop_add "$wt_path"; then
+    exit 0
+  fi
+  echo "hwt: could not add the desktop space; opening a shell here" >&2
 fi
 
 cd "$wt_path" || exit 1

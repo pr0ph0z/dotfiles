@@ -1,0 +1,19 @@
+script/dmg-to-brew
+  s_64221db553c484::t_45da0a757a2245 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d0c1e293ca4e24b4e9455df9a675570b053522b",
+  "prompts": {},
+  "sessions": {
+    "s_64221db553c484": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "717bb2dd-901b-4944-88b2-9b2c37ec9b95",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

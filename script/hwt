@@ -1,13 +1,93 @@
 #!/usr/bin/env zsh
-# hwt: create a herdr worktree for branch $1, then open a shell in it.
-# Extra arguments go to `herdr worktree create` (e.g. --base master).
-# A script cannot change the caller's directory, so it starts a new shell
-# in the worktree. Type `exit` to go back to the original directory.
+# hwt: create a herdr worktree for a branch, then open a shell in it.
+#
+#   hwt <branch> [herdr worktree create options...]
+#       Create a worktree for <branch> and start a new shell in it.
+#       Extra arguments go to `herdr worktree create` (e.g. --base master).
+#       A script cannot change the caller's directory, so it starts a new
+#       shell in the worktree. Type `exit` to go back.
+#
+#   hwt -d|--destroy [branch] [--force]
+#       Remove the linked worktree of <branch> and force-delete the branch
+#       (`git branch -D`, so unmerged commits are dropped too). Without
+#       <branch>, use the branch of the current directory. --force removes a
+#       worktree that has uncommitted changes. Then start a new shell in the
+#       main project directory.
 
-if [[ -z "$1" ]]; then
+usage() {
   echo "usage: hwt <branch> [herdr worktree create options...]" >&2
+  echo "       hwt -d|--destroy [branch] [--force]" >&2
   exit 1
-fi
+}
+
+destroy() {
+  local branch="" force=""
+  for arg in "$@"; do
+    case "$arg" in
+      --force|-f) force="--force" ;;
+      -*) usage ;;
+      *) [[ -z "$branch" ]] || usage; branch="$arg" ;;
+    esac
+  done
+
+  if [[ -z "$branch" ]]; then
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || {
+      echo "hwt: not in a git repository; give a branch name" >&2
+      exit 1
+    }
+  fi
+
+  local list entry wt_path ws_id repo_root
+  list=$(herdr worktree list --cwd "$PWD") || { echo "$list" >&2; exit 1; }
+  repo_root=$(jq -r '.result.source.source_checkout_path // empty' <<<"$list")
+
+  entry=$(jq -c --arg b "$branch" \
+    '.result.worktrees[] | select(.branch == $b and .is_linked_worktree)' <<<"$list" | head -n 1)
+  if [[ -z "$entry" ]]; then
+    echo "hwt: no linked worktree for branch '$branch'" >&2
+    exit 1
+  fi
+
+  wt_path=$(jq -r '.path' <<<"$entry")
+  ws_id=$(jq -r '.open_workspace_id // empty' <<<"$entry")
+
+  if [[ -n "$ws_id" ]]; then
+    # Worktree is open in herdr: let herdr close the workspace and remove it.
+    herdr worktree remove --workspace "$ws_id" ${force:+$force} >/dev/null || exit 1
+  else
+    # Worktree is not open in herdr: remove it with git directly.
+    git worktree remove ${force:+$force} "$wt_path" || exit 1
+  fi
+
+  echo "Removed worktree $wt_path"
+
+  # Force-delete the branch. Run git from the main checkout, because the
+  # current directory may be the worktree that was just removed.
+  # `git branch -D` prints the last commit, so `git branch <name> <sha>`
+  # can restore the branch.
+  if [[ -n "$repo_root" && -d "$repo_root" ]]; then
+    git -C "$repo_root" branch -D "$branch" || echo "hwt: could not delete branch '$branch'" >&2
+  else
+    echo "hwt: project directory not found; branch '$branch' not deleted" >&2
+  fi
+
+  # Go back to the main project checkout. A script cannot change the
+  # caller's directory, so start a new shell there (skip if already there).
+  if [[ -z "$repo_root" || ! -d "$repo_root" ]]; then
+    echo "hwt: project directory not found; cd elsewhere manually" >&2
+    exit 0
+  fi
+  [[ "$PWD" == "$repo_root" ]] && exit 0
+  cd "$repo_root" || exit 1
+  exec "${SHELL:-zsh}"
+}
+
+case "$1" in
+  "") usage ;;
+  -h|--help) usage ;;
+  -d|--destroy) shift; destroy "$@"; exit $? ;;
+  -*) usage ;;
+esac
 
 branch="$1"; shift
 

@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 # hwt: create a herdr worktree for a branch, then open a shell in it.
 #
-#   hwt <branch> [--no-desktop] [herdr worktree create options...]
-#       Create a worktree for <branch>. Extra arguments go to
-#       `herdr worktree create` (e.g. --base master). From a linked
-#       worktree, create from the main checkout, because herdr refuses
-#       to create from a linked worktree.
+#   hwt <branch> [--no-desktop] [--base <ref>] [--path <dir>]
+#       Create a worktree for <branch> with git, at
+#       ~/.herdr/worktrees/<repo>/<branch, "/" changed to "-">. Use the
+#       existing branch, or make a new branch from <ref> (default: HEAD of
+#       the main checkout). This does not need the herdr server.
 #       If the Herdr desktop runs, add a sidebar space for the worktree with
 #       a shell pane in it. When the window is open, also show (focus) the
 #       new space. --no-desktop skips this.
@@ -26,7 +26,7 @@
 # herdr-core 0.1.20). A desktop update can change that format.
 
 usage() {
-  echo "usage: hwt <branch> [--no-desktop] [herdr worktree create options...]" >&2
+  echo "usage: hwt <branch> [--no-desktop] [--base <ref>] [--path <dir>]" >&2
   echo "       hwt -d|--destroy [branch] [--force]" >&2
   exit 1
 }
@@ -224,6 +224,26 @@ core_remove() {
   return 0
 }
 
+# ---------- git ----------
+
+# main_checkout: print the main checkout of the current repository. The first
+# entry of `git worktree list` is the main checkout; skip a bare repository.
+main_checkout() {
+  git worktree list --porcelain 2>/dev/null | awk '
+    NR == 1 && /^worktree / { path = substr($0, 10); next }
+    NR == 2 && $0 == "bare" { path = "" }
+    NR >= 2 { exit }
+    END { if (path != "") print path }'
+}
+
+# linked_worktree_of <branch>: print the path of the linked worktree that has
+# <branch> checked out. Skip the main checkout.
+linked_worktree_of() {
+  git worktree list --porcelain 2>/dev/null | awk -v ref="refs/heads/$1" '
+    /^worktree / { path = substr($0, 10); n++ }
+    /^branch / && n > 1 && substr($0, 8) == ref { print path; exit }'
+}
+
 # ---------- destroy ----------
 
 destroy() {
@@ -243,27 +263,15 @@ destroy() {
     }
   fi
 
-  local list entry wt_path ws_id repo_root own_term=""
-  list=$(herdr worktree list --cwd "$PWD") || { echo "$list" >&2; exit 1; }
-  repo_root=$(jq -r '.result.source.source_checkout_path // empty' <<<"$list")
-
-  entry=$(jq -c --arg b "$branch" \
-    '.result.worktrees[] | select(.branch == $b and .is_linked_worktree)' <<<"$list" | head -n 1)
-  if [[ -z "$entry" ]]; then
+  local wt_path repo_root own_term=""
+  repo_root=$(main_checkout)
+  wt_path=$(linked_worktree_of "$branch")
+  if [[ -z "$wt_path" ]]; then
     echo "hwt: no linked worktree for branch '$branch'" >&2
     exit 1
   fi
 
-  wt_path=$(jq -r '.path' <<<"$entry")
-  ws_id=$(jq -r '.open_workspace_id // empty' <<<"$entry")
-
-  if [[ -n "$ws_id" ]]; then
-    # Worktree is open in herdr: let herdr close the workspace and remove it.
-    herdr worktree remove --workspace "$ws_id" ${force:+$force} >/dev/null || exit 1
-  else
-    # Worktree is not open in herdr: remove it with git directly.
-    git worktree remove ${force:+$force} "$wt_path" || exit 1
-  fi
+  git -C "$repo_root" worktree remove ${force:+$force} "$wt_path" || exit 1
 
   echo "Removed worktree $wt_path"
 
@@ -314,43 +322,55 @@ esac
 branch="$1"; shift
 
 desktop=1
-create_args=()
-for arg in "$@"; do
-  case "$arg" in
+base=""
+wt_path=""
+while (( $# )); do
+  case "$1" in
     --no-desktop) desktop=0 ;;
-    *) create_args+=("$arg") ;;
+    --base) base="$2"; shift ;;
+    --base=*) base="${1#*=}" ;;
+    --path) wt_path="$2"; shift ;;
+    --path=*) wt_path="${1#*=}" ;;
+    *) echo "hwt: unknown option '$1'" >&2; usage ;;
   esac
+  shift
 done
 
-# herdr creates worktrees only from the main checkout ("new and open worktree
-# actions start from the repo parent workspace"). When this runs in a linked
-# worktree, create from the main checkout. The first entry of
-# `git worktree list` is the main checkout; skip it for a bare repository.
-main_checkout() {
-  git worktree list --porcelain 2>/dev/null | awk '
-    NR == 1 && /^worktree / { path = substr($0, 10); next }
-    NR == 2 && $0 == "bare" { path = "" }
-    NR >= 2 { exit }
-    END { if (path != "") print path }'
-}
-
-create_cwd=$(main_checkout)
-[[ -n "$create_cwd" && -d "$create_cwd" ]] || create_cwd=$PWD
+# Create from the main checkout, also when this runs in a linked worktree,
+# so the default base is the HEAD of the main checkout.
+repo_root=$(main_checkout)
+if [[ -z "$repo_root" || ! -d "$repo_root" ]]; then
+  echo "hwt: not in a git repository with a main checkout" >&2
+  exit 1
+fi
 top=$(git rev-parse --show-toplevel 2>/dev/null)
-if [[ -n "$top" && "$create_cwd" != "$top" ]]; then
-  echo "hwt: in a linked worktree; creating from the main checkout $create_cwd" >&2
+if [[ -n "$top" && "$repo_root" != "$top" ]]; then
+  echo "hwt: in a linked worktree; creating from the main checkout $repo_root" >&2
 fi
 
-out=$(herdr worktree create --cwd "$create_cwd" --branch "$branch" --label "$branch" "${create_args[@]}") || {
-  echo "$out" >&2
+git check-ref-format --branch "$branch" >/dev/null 2>&1 || {
+  echo "hwt: '$branch' is not a valid branch name" >&2
   exit 1
 }
 
-wt_path=$(jq -r '.result.worktree.path // empty' <<<"$out")
-if [[ -z "$wt_path" ]]; then
-  echo "hwt: no worktree path in herdr output:" >&2
-  echo "$out" >&2
+existing=$(linked_worktree_of "$branch")
+if [[ -n "$existing" ]]; then
+  echo "hwt: branch '$branch' already has a worktree at $existing" >&2
   exit 1
+fi
+
+[[ -n "$wt_path" ]] || wt_path="$HOME/.herdr/worktrees/${repo_root:t}/${branch//\//-}"
+if [[ -e "$wt_path" ]]; then
+  echo "hwt: $wt_path already exists" >&2
+  exit 1
+fi
+mkdir -p "${wt_path:h}" || exit 1
+
+if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
+  [[ -z "$base" ]] || echo "hwt: branch '$branch' exists; ignoring --base $base" >&2
+  git -C "$repo_root" worktree add "$wt_path" "$branch" || exit 1
+else
+  git -C "$repo_root" worktree add --no-track -b "$branch" "$wt_path" "${base:-HEAD}" || exit 1
 fi
 
 if (( desktop )) && desktop_available; then

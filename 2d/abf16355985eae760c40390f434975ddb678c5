@@ -1,0 +1,19 @@
+config/herdr-app/README.md
+  s_bf92b326daab2b::t_e3d7e99f571aed 1-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2dabf16355985eae760c40390f434975ddb678c5",
+  "prompts": {},
+  "sessions": {
+    "s_bf92b326daab2b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b2265d49-276a-45ba-bdc4-ddbc4371dcc7",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

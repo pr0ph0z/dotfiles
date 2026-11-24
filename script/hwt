@@ -1,11 +1,14 @@
 #!/usr/bin/env zsh
 # hwt: create a herdr worktree for a branch, then open a shell in it.
 #
-#   hwt <branch> [--no-desktop] [--base <ref>] [--path <dir>]
+#   hwt <branch> [--no-desktop] [--no-fetch] [--base <ref>] [--path <dir>]
 #       Create a worktree for <branch> with git, at
 #       ~/.herdr/worktrees/<repo>/<branch, "/" changed to "-">. Use the
-#       existing branch, or make a new branch from <ref> (default: HEAD of
-#       the main checkout). This does not need the herdr server.
+#       existing branch, or make a new branch from <ref>. The default <ref>
+#       is the latest default branch of origin (for example origin/master),
+#       fetched first. The local main branch can be old; hwt does not use it.
+#       If the fetch fails, or with --no-fetch, use HEAD of the main checkout.
+#       This does not need the herdr server.
 #       If the Herdr desktop runs, add a sidebar space for the worktree with
 #       a shell pane in it. When the window is open, also show (focus) the
 #       new space. --no-desktop skips this.
@@ -26,7 +29,7 @@
 # herdr-core 0.1.20). A desktop update can change that format.
 
 usage() {
-  echo "usage: hwt <branch> [--no-desktop] [--base <ref>] [--path <dir>]" >&2
+  echo "usage: hwt <branch> [--no-desktop] [--no-fetch] [--base <ref>] [--path <dir>]" >&2
   echo "       hwt -d|--destroy [branch] [--force]" >&2
   exit 1
 }
@@ -244,6 +247,20 @@ linked_worktree_of() {
     /^branch / && n > 1 && substr($0, 8) == ref { print path; exit }'
 }
 
+# origin_default_branch: print the default branch of origin (for example
+# master). Use the local origin/HEAD, or ask the remote if it is not set.
+origin_default_branch() {
+  local ref
+  ref=$(git -C "$repo_root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)
+  if [[ -n "$ref" ]]; then
+    print -r -- "${ref#origin/}"
+    return 0
+  fi
+  ref=$(git -C "$repo_root" ls-remote --symref origin HEAD 2>/dev/null \
+      | awk '/^ref:/ { sub("refs/heads/", "", $2); print $2; exit }')
+  [[ -n "$ref" ]] && print -r -- "$ref"
+}
+
 # ---------- destroy ----------
 
 destroy() {
@@ -322,11 +339,13 @@ esac
 branch="$1"; shift
 
 desktop=1
+fetch=1
 base=""
 wt_path=""
 while (( $# )); do
   case "$1" in
     --no-desktop) desktop=0 ;;
+    --no-fetch) fetch=0 ;;
     --base) base="$2"; shift ;;
     --base=*) base="${1#*=}" ;;
     --path) wt_path="$2"; shift ;;
@@ -370,6 +389,18 @@ if git -C "$repo_root" show-ref --verify --quiet "refs/heads/$branch"; then
   [[ -z "$base" ]] || echo "hwt: branch '$branch' exists; ignoring --base $base" >&2
   git -C "$repo_root" worktree add "$wt_path" "$branch" || exit 1
 else
+  # Without --base, start from the latest default branch of origin, not from
+  # the HEAD of the main checkout, which can be old.
+  if [[ -z "$base" ]] && (( fetch )); then
+    default=$(origin_default_branch)
+    if [[ -n "$default" ]] \
+        && git -C "$repo_root" fetch origin "+refs/heads/$default:refs/remotes/origin/$default"; then
+      base="origin/$default"
+      echo "hwt: new branch '$branch' from $base ($(git -C "$repo_root" rev-parse --short "$base"))" >&2
+    else
+      echo "hwt: could not fetch the default branch of origin; using HEAD" >&2
+    fi
+  fi
   git -C "$repo_root" worktree add --no-track -b "$branch" "$wt_path" "${base:-HEAD}" || exit 1
 fi
 

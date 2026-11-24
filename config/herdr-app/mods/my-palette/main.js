@@ -4,11 +4,12 @@
 // group. Choices are entries of their own ("Layout: Zen"); commands that need
 // a name ask for it. Enter runs, ↑/↓ move, Esc closes.
 // Personal copy of frame/palette (Herdr rewrites frame/ on every start).
-// Added: the "New worktree (hwt)" and "Delete worktree (hwt -d)" entries. Compare with frame/palette/main.js after Herdr updates.
+// Added: the "New worktree (hwt)" and "Delete worktree (hwt -d)" entries, and
+// PROGRAMS (e.g. "Open Zed"). Compare with frame/palette/main.js after Herdr updates.
 
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { commands, layouts, keys, run, theme, props, closeOverlay, openOverlay, shared, window as win } from "herdr";
+import { commands, layouts, keys, run, theme, props, closeOverlay, openOverlay, shared, window as win, exec, focused, notify } from "herdr";
 
 // The list keeps one height while you move: rows and group titles have fixed
 // heights, and the window shows as many as fit in LIST_H.
@@ -65,6 +66,24 @@ const NAMED = [
   ...["graphite", "ink", "moss", "atom-one-dark"].map((n) => ["app.theme", { name: n }, "App", `Theme: ${n.replace(/-/g, " ")}`, "colors look"]),
 ];
 
+// Personal: programs to run in the focused terminal's folder, no dialog.
+// [program, argv, group, title, keywords].
+const PROGRAMS = [
+  ["zed", ["-n", "."], "App", "Open Zed", "zed editor"],
+];
+
+// Start a PROGRAMS entry. Call it before the palette closes: a started exec
+// keeps running after the overlay closes, but code after `await` does not run
+// then (tested), so a failed exit cannot show a toast. Run the program in a
+// terminal to see its error.
+function startProgram(program, argv, cwd) {
+  if (!cwd) {
+    notify({ title: `Cannot run ${[program, ...argv].join(" ")}`, body: "No focused terminal folder.", level: "error" });
+    return;
+  }
+  exec(program, argv, { cwd }).catch(() => {});
+}
+
 // Commands that act on something you point at (ids, terminals): not for a list.
 const HIDDEN = new Set([
   "space.move", "tab.move", "space.select", "tab.select", "pane.focus", "terminal.keep",
@@ -89,6 +108,9 @@ function entries() {
   for (const l of layouts()) {
     const t = { main: "Herdr", terminals: "Terminals", win98: "Herdr 98" }[l] ?? l.charAt(0).toUpperCase() + l.slice(1);
     list.push({ name: "layout.switch", args: { name: l }, group: "Layout", title: `Layout: ${t}`, words: `look ${l}` });
+  }
+  for (const [program, argv, group, title, words] of PROGRAMS) {
+    list.push({ name: "exec", args: { program, argv }, group, title, words });
   }
   // Anything new in the app shows up too, until it gets a better name here.
   const named = new Set(NAMED.map(([n]) => n));
@@ -154,6 +176,12 @@ export default class Palette extends View {
     if (!e) return;
     this.recent = [e.id, ...this.recent.filter((r) => r !== e.id)].slice(0, 20);
     localStorage.setItem("recent", JSON.stringify(this.recent));
+    if (e.name === "exec") {
+      // Start before the close: see startProgram.
+      startProgram(e.args.program, e.args.argv, focused()?.cwd ?? null);
+      this.close();
+      return;
+    }
     this.close();
     if (e.name === "mod.clone") {
       openOverlay({ mod: "prompt", kind: "dialog", width: 380, props: {

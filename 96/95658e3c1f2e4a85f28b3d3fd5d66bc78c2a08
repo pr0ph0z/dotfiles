@@ -1,0 +1,21 @@
+config/herdr-app/README.md
+  s_9ece6522d44835::t_a0d9f496380137 39
+config/herdr-app/mods/my-palette/main.js
+  s_9ece6522d44835::t_879ef61bdd4d8f 72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9695658e3c1f2e4a85f28b3d3fd5d66bc78c2a08",
+  "prompts": {},
+  "sessions": {
+    "s_9ece6522d44835": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d6960e08-c23f-4d6e-af5e-4c99c516bd61",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

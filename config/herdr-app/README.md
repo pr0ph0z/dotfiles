@@ -36,7 +36,7 @@ Additions to the built-in palette:
 
 - **New worktree (hwt)**: opens the `hwt` mod.
 - **Delete worktree (hwt -d)**: opens the `hwt-delete` mod.
-- **Open Zed**: runs `zed -n .` in the folder of the focused terminal. No dialog opens.
+- **Open Zed**: runs `zed -e .` in the folder of the focused terminal, in the active Zed window. No dialog opens.
   To add more programs, add entries to the `PROGRAMS` list in `main.js`.
 
 After a Herdr update, compare `main.js` with `~/.config/herdr-app/frame/palette/main.js`. Then copy the new changes into this file.

@@ -69,7 +69,7 @@ const NAMED = [
 // Personal: programs to run in the focused terminal's folder, no dialog.
 // [program, argv, group, title, keywords].
 const PROGRAMS = [
-  ["zed", ["-n", "."], "App", "Open Zed", "zed editor"],
+  ["zed", ["-e", "."], "App", "Open Zed", "zed editor"],
 ];
 
 // Start a PROGRAMS entry. Call it before the palette closes: a started exec

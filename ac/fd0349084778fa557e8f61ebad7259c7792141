@@ -1,0 +1,19 @@
+.install.sh
+  s_70eedb8b9ea279::t_2d9b15a92427b9 56-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "acfd0349084778fa557e8f61ebad7259c7792141",
+  "prompts": {},
+  "sessions": {
+    "s_70eedb8b9ea279": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aa3edf14-d683-4654-97d6-50b3a17c13c0",
+        "model": "unknown"
+      },
+      "human_author": "Mohamad Radisha <pr0ph0z23@gmail.com>"
+    }
+  }
+}

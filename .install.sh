@@ -53,6 +53,9 @@ for f in "$DOTFILES_DIR"/script/*; do
   sudo ln -sfn "$f" "/usr/local/bin/$(basename "$f")"
 done
 
+# remove caps lock activation delay
+hidutil property --set '{"CapsLockDelayOverride":0}'
+
 defaults write com.apple.dock workspaces-edge-delay -float 0.1
 defaults write com.apple.dock autohide -bool true
 defaults write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false
